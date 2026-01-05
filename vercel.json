@@ -1,12 +1,4 @@
 {
-  "version": 2,
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": [
-        "node_modules/@gmx-io/sdk/**",
-        "node_modules/cross-fetch/**"
-      ]
-    }
-  }
+  "version": 2
 }
 
