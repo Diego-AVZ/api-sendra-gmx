@@ -46,6 +46,33 @@ const AVALANCHE_CONFIG = {
   subsquidUrl: 'https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql',
 };
 
+// Helper function to find SDK path (works in both local and Vercel environments)
+async function findSDKPath(): Promise<string> {
+  const path = await import('path');
+  const fs = await import('fs/promises');
+  
+  // Try multiple possible paths
+  const possiblePaths = [
+    path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk'),
+    path.resolve('/var/task', 'node_modules/@gmx-io/sdk'), // Vercel
+    path.resolve(__dirname, '../../node_modules/@gmx-io/sdk'),
+    path.resolve(__dirname, '../../../node_modules/@gmx-io/sdk'),
+  ];
+  
+  for (const sdkPath of possiblePaths) {
+    const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
+    try {
+      await fs.access(cjsIndexPath);
+      return sdkPath;
+    } catch {
+      // Path doesn't exist, try next one
+      continue;
+    }
+  }
+  
+  throw new Error('Could not find @gmx-io/sdk module. Tried paths: ' + possiblePaths.join(', '));
+}
+
 export class GMXService {
   private config: GMXConfig;
   private sdk: any = null;
@@ -58,7 +85,7 @@ export class GMXService {
     const { createRequire } = await import('module');
     const path = await import('path');
     
-    const sdkPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
+    const sdkPath = await findSDKPath();
     const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
     const requireSDK = createRequire(cjsIndexPath);
     
@@ -87,7 +114,7 @@ export class GMXService {
     const { createRequire } = await import('module');
     const path = await import('path');
     
-    const sdkPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
+    const sdkPath = await findSDKPath();
     const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
     const requireSDK = createRequire(cjsIndexPath);
     
@@ -132,7 +159,7 @@ export class GMXService {
     const { createRequire } = await import('module');
     const path = await import('path');
     
-    const sdkPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
+    const sdkPath = await findSDKPath();
     const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
     const requireSDK = createRequire(cjsIndexPath);
     
@@ -311,7 +338,7 @@ export class GMXService {
     const { createRequire } = await import('module');
     const path = await import('path');
     
-    const sdkPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
+    const sdkPath = await findSDKPath();
     const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
     const requireSDK = createRequire(cjsIndexPath);
     
@@ -512,7 +539,7 @@ export class GMXService {
     const { createRequire } = await import('module');
     const path = await import('path');
     
-    const sdkPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
+    const sdkPath = await findSDKPath();
     const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
     const requireSDK = createRequire(cjsIndexPath);
     
