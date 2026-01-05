@@ -52,12 +52,16 @@ async function findSDKPath(): Promise<string> {
   const fs = await import('fs/promises');
   
   // Try multiple possible paths
-  const possiblePaths = [
-    path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk'),
-    path.resolve('/var/task', 'node_modules/@gmx-io/sdk'), // Vercel
-    path.resolve(__dirname, '../../node_modules/@gmx-io/sdk'),
-    path.resolve(__dirname, '../../../node_modules/@gmx-io/sdk'),
-  ];
+  const possiblePaths: string[] = [];
+  
+  // First, try process.cwd() (works in both local and Vercel)
+  // In Vercel, process.cwd() returns '/var/task'
+  // In local, process.cwd() returns the project root
+  const cwdPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
+  possiblePaths.push(cwdPath);
+  
+  // Also try explicit /var/task (Vercel serverless functions)
+  possiblePaths.push('/var/task/node_modules/@gmx-io/sdk');
   
   for (const sdkPath of possiblePaths) {
     const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
