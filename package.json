@@ -8,7 +8,8 @@
     "dev:vercel": "vercel dev",
     "build": "tsc",
     "start": "node dist/server.js",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "postinstall": "node -e \"try { require.resolve('@gmx-io/sdk'); console.log('✓ @gmx-io/sdk found'); } catch(e) { console.error('✗ @gmx-io/sdk not found'); process.exit(1); }\""
   },
   "keywords": [
     "defi",
@@ -19,7 +20,7 @@
   "author": "@DiegoAVZ",
   "license": "MIT",
   "dependencies": {
-    "@gmx-io/sdk": "^1.4.0",
+    "@gmx-io/sdk": "1.4.0",
     "cross-fetch": "^4.0.0",
     "viem": "^2.43.5"
   },

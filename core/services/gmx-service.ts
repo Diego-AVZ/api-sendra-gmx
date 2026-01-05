@@ -52,66 +52,119 @@ async function findSDKPath(): Promise<string> {
   const fs = await import('fs/promises');
   const { createRequire } = await import('module');
   
-  // Try require.resolve first - this is the standard way and should work in Vercel
-  try {
-    // Create a require function using process.cwd() as base (works in Vercel)
-    const packageJsonPath = path.resolve(process.cwd(), 'package.json');
-    const require = createRequire(packageJsonPath);
-    const resolvedPath = require.resolve('@gmx-io/sdk');
+  // Multiple strategies to find the SDK path
+  const strategies = [
+    // Strategy 1: Use require.resolve with different base paths
+    async () => {
+      const basePaths = [
+        process.cwd(),
+        '/var/task',
+        path.resolve(process.cwd(), '..'),
+      ];
+      
+      for (const basePath of basePaths) {
+        try {
+          const packageJsonPath = path.resolve(basePath, 'package.json');
+          const require = createRequire(packageJsonPath);
+          const resolvedPath = require.resolve('@gmx-io/sdk');
+          
+          // Extract package directory from resolved path
+          if (resolvedPath.includes('@gmx-io/sdk')) {
+            const match = resolvedPath.match(/(.*[\\\/]@gmx-io[\\\/]sdk)/);
+            if (match && match[1]) {
+              const sdkPath = match[1];
+              // Verify the path exists
+              const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
+              try {
+                await fs.access(cjsIndexPath);
+                return sdkPath;
+              } catch {
+                // Continue to next strategy
+              }
+            }
+          }
+        } catch {
+          // Continue to next base path
+          continue;
+        }
+      }
+      throw new Error('Strategy 1 failed');
+    },
     
-    // require.resolve returns the main entry point, we need the package directory
-    // Walk up from the resolved file to find the package root
-    let currentPath = path.dirname(resolvedPath);
-    const rootPath = path.parse(currentPath).root;
+    // Strategy 2: Try direct paths
+    async () => {
+      const possiblePaths = [
+        path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk'),
+        path.join(process.cwd(), 'node_modules', '@gmx-io', 'sdk'),
+        '/var/task/node_modules/@gmx-io/sdk',
+        path.resolve('/var/task', 'node_modules/@gmx-io/sdk'),
+      ];
+      
+      for (const sdkPath of possiblePaths) {
+        const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
+        try {
+          await fs.access(cjsIndexPath);
+          return sdkPath;
+        } catch {
+          continue;
+        }
+      }
+      throw new Error('Strategy 2 failed');
+    },
     
-    while (currentPath !== rootPath && currentPath !== path.dirname(currentPath)) {
-      const packageJsonPath = path.join(currentPath, 'package.json');
+    // Strategy 3: Walk up from require.resolve result
+    async () => {
       try {
-        await fs.access(packageJsonPath);
-        // Found package.json, this is the package root
-        return currentPath;
+        const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+        const require = createRequire(packageJsonPath);
+        const resolvedPath = require.resolve('@gmx-io/sdk');
+        
+        // Walk up from resolved file to find package root
+        let currentPath = path.dirname(resolvedPath);
+        const rootPath = path.parse(currentPath).root;
+        
+        while (currentPath !== rootPath && currentPath !== path.dirname(currentPath)) {
+          const packageJsonPath = path.join(currentPath, 'package.json');
+          try {
+            await fs.access(packageJsonPath);
+            // Verify it's the right package
+            const cjsIndexPath = path.join(currentPath, 'build/cjs/src/index.js');
+            try {
+              await fs.access(cjsIndexPath);
+              return currentPath;
+            } catch {
+              // Not the right package, continue
+            }
+          } catch {
+            // No package.json here, continue up
+          }
+          currentPath = path.dirname(currentPath);
+        }
+        throw new Error('Strategy 3 failed');
       } catch {
-        currentPath = path.dirname(currentPath);
+        throw new Error('Strategy 3 failed');
       }
+    },
+  ];
+  
+  // Try each strategy in order
+  const errors: string[] = [];
+  for (const strategy of strategies) {
+    try {
+      return await strategy();
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+      continue;
     }
-    
-    // Fallback: extract from path if it contains @gmx-io/sdk
-    if (resolvedPath.includes('@gmx-io/sdk')) {
-      const match = resolvedPath.match(/(.*[\\\/]@gmx-io[\\\/]sdk)/);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-    
-    // If we can't find package.json, try to extract directory from resolved path
-    const dirMatch = resolvedPath.match(/(.*[\\\/]@gmx-io[\\\/]sdk[\\\/])/);
-    if (dirMatch && dirMatch[1]) {
-      return path.dirname(dirMatch[1].replace(/[\\\/]$/, ''));
-    }
-    
-    throw new Error(`Could not determine SDK package directory from resolved path: ${resolvedPath}`);
-  } catch (error) {
-    // Fallback: Try manual path resolution (for Vercel serverless functions)
-    const possiblePaths = [
-      '/var/task/node_modules/@gmx-io/sdk',
-      path.resolve('/var/task', 'node_modules/@gmx-io/sdk'),
-      path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk'),
-      path.join(process.cwd(), 'node_modules', '@gmx-io', 'sdk'),
-      path.resolve(__dirname || process.cwd(), 'node_modules/@gmx-io/sdk'),
-    ];
-    
-    for (const sdkPath of possiblePaths) {
-      const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
-      try {
-        await fs.access(cjsIndexPath);
-        return sdkPath;
-      } catch {
-        continue;
-      }
-    }
-    
-    throw new Error(`Could not find @gmx-io/sdk module. Tried require.resolve and paths: ${possiblePaths.join(', ')}. Error: ${error instanceof Error ? error.message : String(error)}`);
   }
+  
+  // If all strategies fail, throw comprehensive error
+  throw new Error(
+    `Could not find @gmx-io/sdk module. Tried ${strategies.length} strategies. ` +
+    `Errors: ${errors.join('; ')}. ` +
+    `Current working directory: ${process.cwd()}. ` +
+    `Node version: ${process.version}`
+  );
 }
 
 export class GMXService {
