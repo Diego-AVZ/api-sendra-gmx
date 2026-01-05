@@ -3,6 +3,7 @@ import { parse } from 'url';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import indexHandler from './api/index';
 import fundingFeesHandler from './api/funding-fees';
+import positionsHandler from './api/positions';
 
 const PORT = process.env.PORT || 3000;
 
@@ -93,6 +94,11 @@ const server = http.createServer((req, res) => {
   
   if (pathname === '/api/funding-fees') {
     handleRequest(req, res, fundingFeesHandler, parsedUrl);
+    return;
+  }
+  
+  if (pathname === '/api/positions') {
+    handleRequest(req, res, positionsHandler, parsedUrl);
     return;
   }
   
