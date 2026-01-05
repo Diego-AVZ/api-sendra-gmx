@@ -49,32 +49,59 @@ const AVALANCHE_CONFIG = {
 // Helper function to find SDK path (works in both local and Vercel environments)
 async function findSDKPath(): Promise<string> {
   const path = await import('path');
-  const fs = await import('fs/promises');
   
-  // Try multiple possible paths
-  const possiblePaths: string[] = [];
-  
-  // First, try process.cwd() (works in both local and Vercel)
-  // In Vercel, process.cwd() returns '/var/task'
-  // In local, process.cwd() returns the project root
-  const cwdPath = path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk');
-  possiblePaths.push(cwdPath);
-  
-  // Also try explicit /var/task (Vercel serverless functions)
-  possiblePaths.push('/var/task/node_modules/@gmx-io/sdk');
-  
-  for (const sdkPath of possiblePaths) {
-    const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
-    try {
-      await fs.access(cjsIndexPath);
-      return sdkPath;
-    } catch {
-      // Path doesn't exist, try next one
-      continue;
+  // Use require.resolve - the standard Node.js way to find modules
+  // This works in both local and Vercel environments
+  try {
+    const { createRequire } = await import('module');
+    // Use process.cwd() as the base for createRequire
+    const require = createRequire(path.resolve(process.cwd(), 'package.json'));
+    const resolvedPath = require.resolve('@gmx-io/sdk');
+    
+    // require.resolve returns the main entry point, we need the package directory
+    // Walk up from the resolved file to find the package root
+    let currentPath = path.dirname(resolvedPath);
+    while (currentPath !== path.dirname(currentPath)) {
+      const packageJsonPath = path.join(currentPath, 'package.json');
+      const fs = await import('fs/promises');
+      try {
+        await fs.access(packageJsonPath);
+        // Found package.json, this is the package root
+        return currentPath;
+      } catch {
+        currentPath = path.dirname(currentPath);
+      }
     }
+    
+    // Fallback: extract from path if it contains @gmx-io/sdk
+    if (resolvedPath.includes('@gmx-io/sdk')) {
+      const match = resolvedPath.match(/(.*\/@gmx-io\/sdk)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    
+    throw new Error(`Could not determine SDK package directory from resolved path: ${resolvedPath}`);
+  } catch (error) {
+    // Fallback to manual path resolution
+    const fs = await import('fs/promises');
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'node_modules/@gmx-io/sdk'),
+      '/var/task/node_modules/@gmx-io/sdk',
+    ];
+    
+    for (const sdkPath of possiblePaths) {
+      const cjsIndexPath = path.join(sdkPath, 'build/cjs/src/index.js');
+      try {
+        await fs.access(cjsIndexPath);
+        return sdkPath;
+      } catch {
+        continue;
+      }
+    }
+    
+    throw new Error(`Could not find @gmx-io/sdk module. require.resolve error: ${error instanceof Error ? error.message : String(error)}. Tried paths: ${possiblePaths.join(', ')}`);
   }
-  
-  throw new Error('Could not find @gmx-io/sdk module. Tried paths: ' + possiblePaths.join(', '));
 }
 
 export class GMXService {
