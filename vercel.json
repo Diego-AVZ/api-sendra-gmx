@@ -1,6 +1,11 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "installCommand": "npm install --production=false"
+  "installCommand": "npm install --production=false",
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "node_modules/@gmx-io/**"
+    }
+  }
 }
 

@@ -1,4 +1,6 @@
 import type { GMXConfig } from '../types';
+// Force Vercel to include @gmx-io/sdk by importing the loader
+import './gmx-sdk-loader';
 
 export interface FundingFeeResult {
   market: string;
