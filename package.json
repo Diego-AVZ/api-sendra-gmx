@@ -19,7 +19,7 @@
   "author": "@DiegoAVZ",
   "license": "MIT",
   "dependencies": {
-    "@gmx-io/sdk": "^1.0.0",
+    "@gmx-io/sdk": "^1.4.0",
     "viem": "^2.43.5"
   },
   "devDependencies": {
