@@ -4,7 +4,10 @@
   "installCommand": "npm install --production=false",
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "node_modules/@gmx-io/**"
+      "includeFiles": [
+        "node_modules/@gmx-io/**",
+        "node_modules/cross-fetch/**"
+      ]
     }
   }
 }
