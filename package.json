@@ -20,6 +20,7 @@
   "license": "MIT",
   "dependencies": {
     "@gmx-io/sdk": "^1.4.0",
+    "cross-fetch": "^4.0.0",
     "viem": "^2.43.5"
   },
   "devDependencies": {
