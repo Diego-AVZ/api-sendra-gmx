@@ -4,8 +4,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import indexHandler from './api/index';
 import fundingFeesHandler from './api/funding-fees';
 import positionsHandler from './api/positions';
+import pricesHandler from './api/prices';
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 function setupVercelResponse(res: http.ServerResponse): VercelResponse {
   const vercelRes = res as unknown as VercelResponse;
@@ -84,6 +85,16 @@ async function handleRequest(
 }
 
 const server = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 200;
+    res.end();
+    return;
+  }
+  
   const parsedUrl = parse(req.url || '/', true);
   const pathname = parsedUrl.pathname || '/';
   
@@ -102,6 +113,11 @@ const server = http.createServer((req, res) => {
     return;
   }
   
+  if (pathname === '/api/prices') {
+    handleRequest(req, res, pricesHandler, parsedUrl);
+    return;
+  }
+  
   if (pathname.startsWith('/api')) {
     res.statusCode = 404;
     res.end('Not Found');
@@ -112,8 +128,9 @@ const server = http.createServer((req, res) => {
   res.end('Not Found');
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server also accessible on http://0.0.0.0:${PORT}`);
   console.log(`API available at http://localhost:${PORT}/api`);
 });
 

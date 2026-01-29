@@ -140,18 +140,27 @@ export class GMXService {
 
     const { marketsInfoData } = await this.sdk.markets.getMarketsInfo();
 
-    const result = Object.values(marketsInfoData ?? {}).map((m: any) => {
-      const longHourly = getFundingFactorPerPeriod(m, true, 3600);
-      const shortHourly = getFundingFactorPerPeriod(m, false, 3600);
+    const result = Object.values(marketsInfoData ?? {})
+      .filter((m: any) => m && !m.isSpotOnly)
+      .map((m: any) => {
+        try {
+          const longHourly = getFundingFactorPerPeriod(m, true, 3600);
+          const shortHourly = getFundingFactorPerPeriod(m, false, 3600);
 
-      return {
-        market: getMarketFullName(m),
-        long: formatRatePercentage(longHourly, { displayDecimals: 4 }),
-        short: formatRatePercentage(shortHourly, { displayDecimals: 4 }),
-        longRaw: longHourly.toString(),
-        shortRaw: shortHourly.toString(),
-      };
-    });
+          return {
+            market: getMarketFullName(m),
+            marketAddress: m.marketTokenAddress?.toLowerCase(),
+            long: formatRatePercentage(longHourly, { displayDecimals: 4 }),
+            short: formatRatePercentage(shortHourly, { displayDecimals: 4 }),
+            longRaw: longHourly.toString(),
+            shortRaw: shortHourly.toString(),
+          };
+        } catch (error) {
+          console.warn(`Error calculating funding fees for market ${getMarketFullName(m)}:`, error);
+          return null;
+        }
+      })
+      .filter((item: any) => item !== null);
 
     return result;
   }
