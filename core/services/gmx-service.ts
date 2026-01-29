@@ -4,6 +4,7 @@ import './gmx-sdk-loader';
 
 export interface FundingFeeResult {
   market: string;
+  marketAddress: string;
   long: string;
   short: string;
   longRaw: string;
@@ -160,7 +161,7 @@ export class GMXService {
           return null;
         }
       })
-      .filter((item: any) => item !== null);
+      .filter((item): item is FundingFeeResult => item !== null);
 
     return result;
   }
